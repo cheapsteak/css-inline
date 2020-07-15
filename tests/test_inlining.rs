@@ -125,6 +125,21 @@ fn do_not_process_style_tag() {
 }
 
 #[test]
+fn do_not_remove_conditional_comments() {
+    let html = r#"<html><head></head><!--[if mso]>Hello outlook<![endif]--><!--[if !mso]><!--><h1>Hello not outlook</h1><!--<![endif]--></html>"#;
+    let options = InlineOptions {
+        inline_style_tags: false,
+        ..Default::default()
+    };
+    let inliner = CSSInliner::new(options);
+    let result = inliner.inline(&html).unwrap();
+    assert_eq!(
+        result,
+        "<html><head></head><!--[if mso]>Hello outlook<![endif]--><!--[if !mso]><!--><h1>Hello not outlook</h1><!--<![endif]--></html>"
+    )
+}
+
+#[test]
 fn do_not_process_style_tag_and_remove() {
     let html = html!("h1 {background-color: blue;}", "<h1>Hello world!</h1>");
     let options = InlineOptions {
