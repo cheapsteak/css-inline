@@ -119,7 +119,6 @@ use smallvec::{smallvec, SmallVec};
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, Write};
-pub use url::{ParseError, Url};
 
 /// Configuration options for CSS inlining process.
 #[derive(Debug)]
@@ -128,10 +127,6 @@ pub struct InlineOptions<'a> {
     pub inline_style_tags: bool,
     /// Remove "style" tags after inlining
     pub remove_style_tags: bool,
-    /// Used for loading external stylesheets via relative URLs
-    pub base_url: Option<Url>,
-    /// Whether remote stylesheets should be loaded or not
-    pub load_remote_stylesheets: bool,
     // The point of using `Cow` here is Python bindings, where it is problematic to pass a reference
     // without dealing with memory leaks & unsafe. With `Cow` we can use moved values as `String` in
     // Python wrapper for `CSSInliner` and `&str` in Rust & simple functions on the Python side
@@ -146,8 +141,6 @@ impl InlineOptions<'_> {
         InlineOptions {
             inline_style_tags: true,
             remove_style_tags: true,
-            base_url: None,
-            load_remote_stylesheets: true,
             extra_css: None,
         }
     }
@@ -159,8 +152,6 @@ impl Default for InlineOptions<'_> {
         InlineOptions {
             inline_style_tags: true,
             remove_style_tags: false,
-            base_url: None,
-            load_remote_stylesheets: true,
             extra_css: None,
         }
     }
@@ -229,55 +220,11 @@ impl<'a> CSSInliner<'a> {
                 style_tag.as_node().detach()
             }
         }
-        if self.options.load_remote_stylesheets {
-            for link_tag in document
-                .select("link[rel~=stylesheet]")
-                .map_err(|_| error::InlineError::ParseError("Unknown error".to_string()))?
-            {
-                if let Some(href) = &link_tag.attributes.borrow().get("href") {
-                    let url = self.get_full_url(href);
-                    let css = self.load_external(url.as_ref())?;
-                    process_css(&document, css.as_str())?;
-                }
-            }
-        }
         if let Some(extra_css) = &self.options.extra_css {
             process_css(&document, extra_css)?;
         }
         document.serialize(target)?;
         Ok(())
-    }
-
-    fn get_full_url<'u>(&self, href: &'u str) -> Cow<'u, str> {
-        // Valid absolute URL
-        if Url::parse(href).is_ok() {
-            return Cow::Borrowed(href);
-        };
-        if let Some(base_url) = &self.options.base_url {
-            // Use the same scheme as the base URL
-            if href.starts_with("//") {
-                return Cow::Owned(format!("{}:{}", base_url.scheme(), href));
-            } else {
-                // Not a URL, then it is a relative URL
-                if let Ok(new_url) = base_url.join(href) {
-                    return Cow::Owned(new_url.to_string());
-                }
-            }
-        };
-        // If it is not a valid URL and there is no base URL specified, we assume a local path
-        Cow::Borrowed(href)
-    }
-
-    fn load_external(&self, url: &str) -> Result<String> {
-        if url.starts_with("http") | url.starts_with("https") {
-            let response = attohttpc::get(url).send()?;
-            Ok(response.text()?)
-        } else {
-            let mut file = File::open(url)?;
-            let mut css = String::new();
-            file.read_to_string(&mut css)?;
-            Ok(css)
-        }
     }
 }
 

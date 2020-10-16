@@ -95,8 +95,6 @@ impl TryFrom<Options> for rust_inline::InlineOptions<'_> {
         Ok(rust_inline::InlineOptions {
             inline_style_tags: value.inline_style_tags,
             remove_style_tags: value.remove_style_tags,
-            base_url: parse_url(value.base_url)?,
-            load_remote_stylesheets: value.load_remote_stylesheets,
             extra_css: value.extra_css.map(Cow::Owned),
         })
     }
@@ -119,8 +117,6 @@ const INLINE: &'static str = r#"
 interface InlineOptions {
     inline_style_tags?: boolean,
     remove_style_tags?: boolean,
-    base_url?: string,
-    load_remote_stylesheets?: boolean,
     extra_css?: string,
 }
 

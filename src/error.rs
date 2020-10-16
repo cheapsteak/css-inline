@@ -9,8 +9,6 @@ use std::{fmt, io};
 pub enum InlineError {
     /// Input-output error. May happen during writing the resulting HTML.
     IO(io::Error),
-    /// Network-related problem. E.g. resource is not available.
-    Network(attohttpc::Error),
     /// Syntax errors or unsupported selectors.
     ParseError(String),
 }
@@ -20,11 +18,6 @@ impl From<io::Error> for InlineError {
         InlineError::IO(error)
     }
 }
-impl From<attohttpc::Error> for InlineError {
-    fn from(error: attohttpc::Error) -> Self {
-        InlineError::Network(error)
-    }
-}
 
 impl Error for InlineError {}
 
@@ -32,7 +25,6 @@ impl Display for InlineError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             InlineError::IO(error) => write!(f, "{}", error),
-            InlineError::Network(error) => write!(f, "{}", error),
             InlineError::ParseError(error) => write!(f, "{}", error),
         }
     }
